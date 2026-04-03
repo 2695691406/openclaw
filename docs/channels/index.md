@@ -22,6 +22,7 @@ Text is supported everywhere; media and reactions vary by channel.
 - [LINE](/channels/line) — LINE Messaging API bot (plugin, installed separately).
 - [Matrix](/channels/matrix) — Matrix protocol (plugin, installed separately).
 - [Mattermost](/channels/mattermost) — Bot API + WebSocket; channels, groups, DMs (plugin, installed separately).
+- [Message Queue](/channels/mq) — AMQP (RabbitMQ), Redis Pub/Sub, and MQTT broker integration (plugin, installed separately).
 - [Microsoft Teams](/channels/msteams) — Bot Framework; enterprise support (plugin, installed separately).
 - [Nextcloud Talk](/channels/nextcloud-talk) — Self-hosted chat via Nextcloud Talk (plugin, installed separately).
 - [Nostr](/channels/nostr) — Decentralized DMs via NIP-04 (plugin, installed separately).
