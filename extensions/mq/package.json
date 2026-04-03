@@ -1,0 +1,47 @@
+{
+  "name": "@openclaw/mq",
+  "version": "2026.4.1-beta.1",
+  "description": "OpenClaw message queue channel plugin (Kafka, RabbitMQ, RocketMQ)",
+  "type": "module",
+  "dependencies": {
+    "amqplib": "^0.10.4",
+    "kafkajs": "^2.2.4"
+  },
+  "devDependencies": {
+    "@types/amqplib": "^0.10.5",
+    "openclaw": "*"
+  },
+  "peerDependencies": {
+    "openclaw": ">=2026.4.1"
+  },
+  "peerDependenciesMeta": {
+    "openclaw": {
+      "optional": true
+    }
+  },
+  "openclaw": {
+    "extensions": [
+      "./index.ts"
+    ],
+    "install": {
+      "npmSpec": "@openclaw/mq",
+      "defaultChoice": "npm",
+      "minHostVersion": ">=2026.4.1"
+    },
+    "setupEntry": "./setup-entry.ts",
+    "channel": {
+      "id": "mq",
+      "label": "Message Queue",
+      "selectionLabel": "Message Queue (Kafka / RabbitMQ / RocketMQ)",
+      "detailLabel": "MQ",
+      "docsPath": "/channels/mq",
+      "docsLabel": "mq",
+      "blurb": "Kafka, RabbitMQ, and RocketMQ broker integration.",
+      "aliases": [
+        "kafka",
+        "rabbitmq",
+        "rocketmq"
+      ]
+    }
+  }
+}

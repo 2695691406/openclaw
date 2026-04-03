@@ -13,6 +13,11 @@
       - any-glob-to-any-file:
           - "extensions/irc/**"
           - "docs/channels/irc.md"
+"channel: mq":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "extensions/mq/**"
+          - "docs/channels/mq.md"
 "channel: feishu":
   - changed-files:
       - any-glob-to-any-file:

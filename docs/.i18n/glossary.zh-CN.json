@@ -302,5 +302,45 @@
   {
     "source": "Testing",
     "target": "测试"
+  },
+  {
+    "source": "Message Queue",
+    "target": "消息队列"
+  },
+  {
+    "source": "message queue",
+    "target": "消息队列"
+  },
+  {
+    "source": "Kafka",
+    "target": "Kafka"
+  },
+  {
+    "source": "RabbitMQ",
+    "target": "RabbitMQ"
+  },
+  {
+    "source": "RocketMQ",
+    "target": "RocketMQ"
+  },
+  {
+    "source": "topic",
+    "target": "topic（主题）"
+  },
+  {
+    "source": "consumer group",
+    "target": "消费者组"
+  },
+  {
+    "source": "broker",
+    "target": "Broker 消息代理"
+  },
+  {
+    "source": "exchange",
+    "target": "exchange（交换机）"
+  },
+  {
+    "source": "routing key",
+    "target": "路由键"
   }
 ]
