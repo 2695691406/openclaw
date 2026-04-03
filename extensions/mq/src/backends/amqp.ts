@@ -7,7 +7,7 @@ import type {
 } from "./types.js";
 
 type AmqpHandle = {
-  connection: import("amqplib").ChannelWrapper;
+  connection: import("amqplib").ChannelModel;
   channel: import("amqplib").Channel;
 };
 
@@ -49,8 +49,10 @@ export const amqpBackend: MqBackendAdapter = {
       handle: { connection, channel } satisfies AmqpHandle,
       isConnected: () => {
         try {
-          return (connection as unknown as { connection?: { stream?: { writable?: boolean } } })
-            ?.connection?.stream?.writable !== false;
+          return (
+            (connection as unknown as { connection?: { stream?: { writable?: boolean } } })
+              ?.connection?.stream?.writable !== false
+          );
         } catch {
           return false;
         }

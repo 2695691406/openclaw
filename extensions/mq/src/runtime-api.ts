@@ -11,10 +11,4 @@ export { createAccountStatusSink } from "openclaw/plugin-sdk/channel-lifecycle";
 export type { OutboundReplyPayload } from "openclaw/plugin-sdk/reply-payload";
 export type { RuntimeEnv } from "openclaw/plugin-sdk/runtime-env";
 export type { BaseProbeResult } from "openclaw/plugin-sdk/channel-contract";
-export type {
-  BlockStreamingCoalesceConfig,
-  DmPolicy,
-  GroupPolicy,
-  GroupToolPolicyConfig,
-  MarkdownConfig,
-} from "openclaw/plugin-sdk/config-runtime";
+export type { DmPolicy, GroupPolicy } from "openclaw/plugin-sdk/config-runtime";

@@ -5,21 +5,14 @@ import {
   createScopedChannelConfigAdapter,
   createScopedDmSecurityResolver,
 } from "openclaw/plugin-sdk/channel-config-helpers";
-import {
-  createAllowlistProviderOpenWarningCollector,
-} from "openclaw/plugin-sdk/channel-policy";
+import { createAllowlistProviderOpenWarningCollector } from "openclaw/plugin-sdk/channel-policy";
 import { createChatChannelPlugin } from "openclaw/plugin-sdk/core";
 import { runStoppablePassiveMonitor } from "openclaw/plugin-sdk/extension-shared";
 import {
   createComputedAccountStatusAdapter,
   createDefaultChannelRuntimeState,
 } from "openclaw/plugin-sdk/status-helpers";
-import {
-  listMqAccountIds,
-  resolveDefaultMqAccountId,
-  resolveMqAccount,
-  type ResolvedMqAccount,
-} from "./accounts.js";
+import { listMqAccountIds, resolveDefaultMqAccountId, resolveMqAccount } from "./accounts.js";
 import { MqChannelConfigSchema } from "./config-schema.js";
 import { monitorMqProvider } from "./monitor.js";
 import {
@@ -31,15 +24,22 @@ import {
   buildBaseChannelStatusSummary,
   createAccountStatusSink,
   DEFAULT_ACCOUNT_ID,
-  getChatChannelMeta,
   type ChannelPlugin,
 } from "./runtime-api.js";
 import { getMqRuntime } from "./runtime.js";
 import { sendMessageMq } from "./send.js";
 import { mqSetupAdapter } from "./setup-core.js";
-import type { CoreConfig, MqProbe } from "./types.js";
+import type { CoreConfig, MqProbe, ResolvedMqAccount } from "./types.js";
 
-const meta = getChatChannelMeta("mq");
+const meta = {
+  id: "mq" as const,
+  label: "Message Queue",
+  selectionLabel: "Message Queue (AMQP, Redis, MQTT)",
+  docsPath: "/channels/mq",
+  docsLabel: "mq",
+  blurb: "message queue integration via AMQP (RabbitMQ), Redis Pub/Sub, or MQTT brokers.",
+  systemImage: "arrow.left.arrow.right",
+};
 
 const mqConfigAdapter = createScopedChannelConfigAdapter<
   ResolvedMqAccount,
@@ -50,14 +50,7 @@ const mqConfigAdapter = createScopedChannelConfigAdapter<
   listAccountIds: listMqAccountIds,
   resolveAccount: adaptScopedAccountAccessor(resolveMqAccount),
   defaultAccountId: resolveDefaultMqAccountId,
-  clearBaseFields: [
-    "name",
-    "backend",
-    "brokerUrl",
-    "username",
-    "password",
-    "tls",
-  ],
+  clearBaseFields: ["name", "backend", "brokerUrl", "username", "password", "tls"],
   resolveAllowFrom: (account: ResolvedMqAccount) => account.config.allowFrom,
   formatAllowFrom: (allowFrom) =>
     formatNormalizedAllowFromEntries({
@@ -75,17 +68,17 @@ const resolveMqDmPolicy = createScopedDmSecurityResolver<ResolvedMqAccount>({
   normalizeEntry: (raw) => normalizeMqAllowEntry(raw),
 });
 
-const collectMqGroupPolicyWarnings =
-  createAllowlistProviderOpenWarningCollector<ResolvedMqAccount>({
+const collectMqGroupPolicyWarnings = createAllowlistProviderOpenWarningCollector<ResolvedMqAccount>(
+  {
     providerConfigPresent: (cfg) => cfg.channels?.mq !== undefined,
     resolveGroupPolicy: (account) => account.config.groupPolicy,
     buildOpenWarning: {
       surface: "MQ queues/topics",
       openBehavior: "allows all senders",
-      remediation:
-        'Prefer channels.mq.dmPolicy="allowlist" with channels.mq.allowFrom',
+      remediation: 'Prefer channels.mq.dmPolicy="allowlist" with channels.mq.allowFrom',
     },
-  });
+  },
+);
 
 export const mqPlugin: ChannelPlugin<ResolvedMqAccount, MqProbe> = createChatChannelPlugin({
   base: {
@@ -177,15 +170,20 @@ export const mqPlugin: ChannelPlugin<ResolvedMqAccount, MqProbe> = createChatCha
   outbound: {
     base: {
       deliveryMode: "direct",
-      blockStreaming: true,
     },
     attachedResults: {
       channel: "mq",
-      sendText: async ({ cfg, to, text, accountId }) =>
-        await sendMessageMq(to, text, {
+      sendText: async ({ cfg, to, text, accountId }) => {
+        const result = await sendMessageMq(to, text, {
           cfg: cfg as CoreConfig,
           accountId: accountId ?? undefined,
-        }),
+        });
+        return {
+          channel: "mq" as const,
+          messageId: `mq-${Date.now()}`,
+          chatId: result.target,
+        };
+      },
     },
   },
 });

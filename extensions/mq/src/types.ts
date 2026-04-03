@@ -1,12 +1,4 @@
-import type {
-  BlockStreamingCoalesceConfig,
-  DmPolicy,
-  GroupPolicy,
-  GroupToolPolicyConfig,
-  MarkdownConfig,
-  OpenClawConfig,
-  BaseProbeResult,
-} from "./runtime-api.js";
+import type { DmPolicy, GroupPolicy, OpenClawConfig, BaseProbeResult } from "./runtime-api.js";
 
 export type MqBackendType = "amqp" | "redis" | "mqtt";
 
@@ -55,9 +47,7 @@ export type MqAccountConfig = {
   allowFrom?: Array<string | number>;
   groupPolicy?: GroupPolicy;
   groupAllowFrom?: Array<string | number>;
-  markdown?: MarkdownConfig;
   blockStreaming?: boolean;
-  blockStreamingCoalesce?: BlockStreamingCoalesceConfig;
   textChunkLimit?: number;
   prefetch?: number;
   heartbeat?: number;
