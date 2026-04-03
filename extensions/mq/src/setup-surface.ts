@@ -81,6 +81,7 @@ export const mqSetupWizard: ChannelSetupWizard = {
   ],
   textInputs: [
     {
+      // inputKey must be keyof ChannelSetupInput; using "webhookUrl" for inbound target
       inputKey: "webhookUrl",
       message: "Inbound queue/topic name",
       placeholder: "openclaw-inbound",
@@ -101,6 +102,7 @@ export const mqSetupWizard: ChannelSetupWizard = {
         }),
     },
     {
+      // inputKey must be keyof ChannelSetupInput; using "webhookPath" for outbound target
       inputKey: "webhookPath",
       message: "Outbound queue/topic name (optional)",
       placeholder: "openclaw-outbound",

@@ -1,6 +1,5 @@
 import {
   buildChannelConfigSchema,
-  BlockStreamingCoalesceSchema,
   DmPolicySchema,
   GroupPolicySchema,
   MarkdownConfigSchema,
