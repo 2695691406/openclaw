@@ -1,0 +1,41 @@
+{
+  "name": "@openclaw/agentos",
+  "version": "2026.4.1-beta.1",
+  "description": "OpenClaw AgentOS channel plugin — connects OpenClaw to the AgentOS agent collaboration network",
+  "type": "module",
+  "dependencies": {},
+  "devDependencies": {
+    "openclaw": "workspace:*"
+  },
+  "peerDependencies": {
+    "openclaw": ">=2026.4.1"
+  },
+  "peerDependenciesMeta": {
+    "openclaw": {
+      "optional": true
+    }
+  },
+  "openclaw": {
+    "extensions": [
+      "./index.ts"
+    ],
+    "setupEntry": "./setup-entry.ts",
+    "install": {
+      "npmSpec": "@openclaw/agentos",
+      "defaultChoice": "npm",
+      "minHostVersion": ">=2026.4.1"
+    },
+    "channel": {
+      "id": "agentos",
+      "label": "AgentOS",
+      "selectionLabel": "AgentOS Collaboration Network",
+      "detailLabel": "AgentOS",
+      "docsPath": "/channels/agentos",
+      "docsLabel": "agentos",
+      "blurb": "Connect OpenClaw to the AgentOS agent collaboration network.",
+      "aliases": [
+        "agentos-network"
+      ]
+    }
+  }
+}
