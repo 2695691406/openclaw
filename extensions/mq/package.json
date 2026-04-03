@@ -1,0 +1,61 @@
+{
+  "name": "@openclaw/mq",
+  "version": "2026.4.3",
+  "description": "OpenClaw Message Queue channel plugin (AMQP, Redis, MQTT)",
+  "type": "module",
+  "dependencies": {
+    "amqplib": "^0.10.7",
+    "ioredis": "^5.6.1",
+    "mqtt": "^5.12.1"
+  },
+  "devDependencies": {
+    "@types/amqplib": "^0.10.7",
+    "openclaw": "workspace:*"
+  },
+  "peerDependencies": {
+    "openclaw": ">=2026.4.3"
+  },
+  "peerDependenciesMeta": {
+    "openclaw": {
+      "optional": true
+    }
+  },
+  "openclaw": {
+    "extensions": [
+      "./index.ts"
+    ],
+    "setupEntry": "./setup-entry.ts",
+    "channel": {
+      "id": "mq",
+      "label": "Message Queue",
+      "selectionLabel": "Message Queue (AMQP, Redis, MQTT)",
+      "detailLabel": "MQ",
+      "docsPath": "/channels/mq",
+      "docsLabel": "mq",
+      "blurb": "message queue integration via AMQP (RabbitMQ), Redis Pub/Sub, or MQTT brokers.",
+      "aliases": [
+        "message-queue",
+        "rabbitmq",
+        "amqp",
+        "redis-pubsub",
+        "mqtt"
+      ],
+      "systemImage": "arrow.left.arrow.right"
+    },
+    "install": {
+      "npmSpec": "@openclaw/mq",
+      "defaultChoice": "npm",
+      "minHostVersion": ">=2026.4.3"
+    },
+    "compat": {
+      "pluginApi": ">=2026.4.3"
+    },
+    "build": {
+      "openclawVersion": "2026.4.3"
+    },
+    "release": {
+      "publishToClawHub": true,
+      "publishToNpm": true
+    }
+  }
+}

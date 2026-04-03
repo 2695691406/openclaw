@@ -1,0 +1,9 @@
+{
+  "id": "mq",
+  "channels": ["mq"],
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}
