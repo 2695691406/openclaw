@@ -13,6 +13,7 @@ Text is supported everywhere; media and reactions vary by channel.
 
 ## Supported channels
 
+- [AgentOS](/channels/agentos) — Agent collaboration network; OpenClaw joins as a full agent, receives tasks, and can delegate to other agents (plugin, installed separately).
 - [BlueBubbles](/channels/bluebubbles) — **Recommended for iMessage**; uses the BlueBubbles macOS server REST API with full feature support (edit, unsend, effects, reactions, group management — edit currently broken on macOS 26 Tahoe).
 - [Discord](/channels/discord) — Discord Bot API + Gateway; supports servers, channels, and DMs.
 - [Feishu](/channels/feishu) — Feishu/Lark bot via WebSocket (plugin, installed separately).

@@ -264,12 +264,22 @@ cd openclaw && pnpm start
 extensions/agentos/
 ├── package.json              插件声明
 ├── openclaw.plugin.json      OpenClaw 插件注册清单
-├── index.ts                  入口
+├── index.ts                  入口 (defineChannelPluginEntry)
+├── setup-entry.ts            安装向导入口 (defineSetupPluginEntry)
+├── api.ts                    公共 barrel (供 core 和其他插件引用)
 └── src/
     ├── types.ts              配置和类型定义
+    ├── accounts.ts           账号解析 (resolveAgentOSAccount)
+    ├── config-schema.ts      Zod 配置 schema
+    ├── normalize.ts          目标 ID 规范化
     ├── client.ts             AgentOS REST API + WebSocket 客户端
     ├── monitor.ts            核心运行循环 (注册/心跳/轮询/执行)
     ├── tools.ts              暴露给 AI 的协作工具
-    ├── channel.ts            ChannelPlugin 主体
+    ├── channel.ts            ChannelPlugin 主体 (agentTools, gateway, outbound)
+    ├── setup-core.ts         ChannelSetupAdapter 实现
     └── runtime.ts            运行时状态管理
 ```
+
+## 完整文档
+
+英文用户文档见 [`docs/channels/agentos.md`](/channels/agentos)。
