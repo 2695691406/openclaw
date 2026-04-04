@@ -15,10 +15,8 @@ const AgentOSAccountSchemaBase = z.object({
   name: z.string().optional(),
 });
 
-const AgentOSAccountSchema = AgentOSAccountSchemaBase;
-
 const AgentOSConfigSchema = AgentOSAccountSchemaBase.extend({
-  accounts: z.record(AgentOSAccountSchema).optional(),
+  accounts: z.record(z.string(), AgentOSAccountSchemaBase).optional(),
 });
 
 export const AgentOSChannelConfigSchema = buildChannelConfigSchema(AgentOSConfigSchema);

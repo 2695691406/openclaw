@@ -5,8 +5,7 @@ import {
   createScopedChannelConfigAdapter,
   createScopedDmSecurityResolver,
 } from "openclaw/plugin-sdk/channel-config-helpers";
-import { createAccountStatusSink } from "openclaw/plugin-sdk/channel-lifecycle";
-import { createChatChannelPlugin, DEFAULT_ACCOUNT_ID } from "openclaw/plugin-sdk/core";
+import { createChatChannelPlugin, DEFAULT_ACCOUNT_ID, defineChannelPluginEntry } from "openclaw/plugin-sdk/core";
 import type { ChannelPlugin } from "openclaw/plugin-sdk/core";
 import { runStoppablePassiveMonitor } from "openclaw/plugin-sdk/extension-shared";
 import {
@@ -28,8 +27,11 @@ import {
   stripAgentOSTargetPrefix,
 } from "./normalize.js";
 import { agentOSSetupAdapter } from "./setup-core.js";
-import { createAgentOSTools } from "./tools.js";
 import type { CoreConfig } from "./types.js";
+import { createAgentOSTools } from "./tools.js";
+
+// defineChannelPluginEntry is imported but only used via index.ts
+void defineChannelPluginEntry;
 
 const CHANNEL_ID = "agentos" as const;
 
@@ -42,7 +44,7 @@ const meta = {
   selectionLabel: "AgentOS Collaboration Network",
   docsPath: "/channels/agentos",
   docsLabel: "agentos",
-  blurb: "Kafka, RabbitMQ, and RocketMQ broker integration.",
+  blurb: "Connect OpenClaw to the AgentOS agent collaboration network.",
   aliases: ["agentos-network"],
   order: 90,
   quickstartAllowFrom: false,
@@ -75,7 +77,7 @@ const resolveAgentOSDmPolicy = createScopedDmSecurityResolver<ResolvedAgentOSAcc
   normalizeEntry: (raw) => stripAgentOSTargetPrefix(raw.trim()),
 });
 
-// Probe type (minimal; AgentOS has no dedicated probe endpoint)
+// Probe type (minimal — AgentOS has no dedicated probe endpoint)
 type AgentOSProbe = { latencyMs: number } | null;
 
 export const agentosPlugin: ChannelPlugin<ResolvedAgentOSAccount, AgentOSProbe> =
@@ -140,7 +142,6 @@ export const agentosPlugin: ChannelPlugin<ResolvedAgentOSAccount, AgentOSProbe> 
           lastProbeAt: snapshot.lastProbeAt ?? null,
         }),
         probeAccount: async ({ account }) => {
-          // Simple liveness check: GET /api/v1/agents
           try {
             const start = Date.now();
             const resp = await fetch(`${account.platformUrl}/api/v1/agents`);
@@ -164,10 +165,6 @@ export const agentosPlugin: ChannelPlugin<ResolvedAgentOSAccount, AgentOSProbe> 
       gateway: {
         startAccount: async (ctx) => {
           const account = ctx.account;
-          const statusSink = createAccountStatusSink({
-            accountId: ctx.accountId,
-            setStatus: ctx.setStatus,
-          });
 
           if (!account.configured) {
             throw new Error(
@@ -175,7 +172,9 @@ export const agentosPlugin: ChannelPlugin<ResolvedAgentOSAccount, AgentOSProbe> 
             );
           }
 
-          ctx.log?.info(`[${account.accountId}] starting AgentOS monitor (${account.platformUrl})`);
+          ctx.log?.info(
+            `[${account.accountId}] starting AgentOS monitor (${account.platformUrl})`,
+          );
 
           await runStoppablePassiveMonitor({
             abortSignal: ctx.abortSignal,
@@ -185,8 +184,8 @@ export const agentosPlugin: ChannelPlugin<ResolvedAgentOSAccount, AgentOSProbe> 
                 cfg: ctx.cfg as CoreConfig,
                 accountId: ctx.accountId,
                 log: (level, msg) => {
-                  if (level === "error") ctx.log?.error(msg, {});
-                  else if (level === "warn") ctx.log?.warn(msg, {});
+                  if (level === "error") ctx.log?.info(`[error] ${msg}`);
+                  else if (level === "warn") ctx.log?.info(`[warn] ${msg}`);
                   else ctx.log?.info(msg);
                 },
                 onNegotiationMessage: async (event) => {
@@ -195,20 +194,21 @@ export const agentosPlugin: ChannelPlugin<ResolvedAgentOSAccount, AgentOSProbe> 
               });
 
               monitors.set(ctx.accountId, monitor);
-              statusSink.setConnected();
+              await monitor.start();
 
-              try {
-                await monitor.start(ctx.abortSignal);
-              } finally {
-                monitors.delete(ctx.accountId);
-                statusSink.setDisconnected();
-              }
+              return {
+                stop: () => {
+                  monitors.delete(ctx.accountId);
+                  void monitor.stop();
+                },
+              };
             },
           });
         },
       },
       tools: () => {
-        const monitor = monitors.get(DEFAULT_ACCOUNT_ID) ?? monitors.values().next().value;
+        const monitor =
+          monitors.get(DEFAULT_ACCOUNT_ID) ?? monitors.values().next().value ?? null;
         if (!monitor) return [];
         return createAgentOSTools({
           client: monitor.client,
@@ -228,30 +228,29 @@ export const agentosPlugin: ChannelPlugin<ResolvedAgentOSAccount, AgentOSProbe> 
       },
       attachedResults: {
         channel: CHANNEL_ID,
-        // Outbound sends are used when AI proactively messages an AgentOS target.
-        // The target ID is expected to be a task ID; we report it as a completion.
-        sendText: async ({ cfg, to, text, accountId }) => {
+        sendText: async ({ cfg, to, accountId }) => {
+          // Outbound: AI sends to an AgentOS task ID — treated as task completion
           const account = resolveAgentOSAccount({
             cfg: cfg as CoreConfig,
             accountId: accountId ?? undefined,
           });
-          const client = new (await import("./client.js")).AgentOSClient(
-            resolvedAccountToConfig(account),
-          );
+          const { AgentOSClient } = await import("./client.js");
+          const client = new AgentOSClient(resolvedAccountToConfig(account));
           const taskId = stripAgentOSTargetPrefix(to);
-          await client.reportComplete(taskId, { type: "ai_response", content: text }, 0);
+          await client.reportComplete(taskId, { type: "ai_response", task_id: taskId }, 0);
+          return { messageId: taskId };
         },
         sendMedia: async ({ cfg, to, text, mediaUrl, accountId }) => {
           const account = resolveAgentOSAccount({
             cfg: cfg as CoreConfig,
             accountId: accountId ?? undefined,
           });
-          const client = new (await import("./client.js")).AgentOSClient(
-            resolvedAccountToConfig(account),
-          );
+          const { AgentOSClient } = await import("./client.js");
+          const client = new AgentOSClient(resolvedAccountToConfig(account));
           const taskId = stripAgentOSTargetPrefix(to);
           const body = mediaUrl ? `${text}\n\nAttachment: ${mediaUrl}` : text;
-          await client.reportComplete(taskId, { type: "ai_response", content: body }, 0);
+          await client.reportComplete(taskId, { type: "ai_response", content: body, task_id: taskId }, 0);
+          return { messageId: taskId };
         },
       },
     },

@@ -65,14 +65,14 @@ export function resolveAgentOSAccount(params: {
       DEFAULT_CONFIG.domain
     ).trim();
 
-    const capabilities =
-      merged.capabilities ??
-      (accountId === DEFAULT_ACCOUNT_ID
+    const envCapabilities =
+      accountId === DEFAULT_ACCOUNT_ID
         ? (process.env.AGENTOS_CAPABILITIES?.split(",")
             .map((s) => s.trim())
             .filter(Boolean) ?? [])
-        : []) ??
-      DEFAULT_CONFIG.capabilities;
+        : [];
+    const capabilities =
+      merged.capabilities ?? (envCapabilities.length > 0 ? envCapabilities : DEFAULT_CONFIG.capabilities);
 
     const heartbeatIntervalSec = merged.heartbeatIntervalSec ?? DEFAULT_CONFIG.heartbeatIntervalSec;
     const pollIntervalSec = merged.pollIntervalSec ?? DEFAULT_CONFIG.pollIntervalSec;
