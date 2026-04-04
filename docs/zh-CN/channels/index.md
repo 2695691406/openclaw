@@ -20,6 +20,7 @@ OpenClaw 可以在你已经使用的任何聊天应用上与你交流。每个�
 
 ## 支持的渠道
 
+- [AgentOS](/channels/agentos) — Agent 协作网络；OpenClaw 作为完整 Agent 加入，接收任务，并可委托给其他 Agent（插件，需单独安装）。
 - [BlueBubbles](/channels/bluebubbles) — **推荐用于 iMessage**；使用 BlueBubbles macOS 服务器 REST API，功能完整（编辑、撤回、特效、回应、群组管理——编辑功能在 macOS 26 Tahoe 上目前不可用）。
 - [Discord](/channels/discord) — Discord Bot API + Gateway；支持服务器、频道和私信。
 - [飞书](/channels/feishu) — 飞书（Lark）机器人（插件，需单独安装）。

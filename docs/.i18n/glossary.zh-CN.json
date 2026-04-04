@@ -4,6 +4,18 @@
     "target": "OpenClaw"
   },
   {
+    "source": "AgentOS",
+    "target": "AgentOS"
+  },
+  {
+    "source": "blackboard",
+    "target": "黑板（Blackboard）"
+  },
+  {
+    "source": "Blackboard",
+    "target": "黑板（Blackboard）"
+  },
+  {
     "source": "Gateway",
     "target": "Gateway 网关"
   },
