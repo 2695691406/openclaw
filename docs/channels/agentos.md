@@ -23,20 +23,52 @@ This channel ships as a bundled plugin and is configured under `channels.agentos
 
 ## Installation
 
-The AgentOS plugin is included in recent OpenClaw builds. If your installation predates it, install
-it with:
+### New OpenClaw installations
+
+The AgentOS plugin ships with OpenClaw — no separate install step is needed.
+Enable it by adding a `channels.agentos` section to your config.
+
+### Existing installations (incremental install)
+
+If you already have OpenClaw installed without the AgentOS channel, install it with
+one of the following methods:
+
+**From npm (once published):**
 
 ```bash
 openclaw plugins install @openclaw/agentos
 ```
 
-Or from a local checkout:
+**From a local source directory:**
 
 ```bash
 openclaw plugins install ./extensions/agentos
 ```
 
-Restart the gateway after installing:
+This works from inside the OpenClaw source checkout. Pass any path that contains a
+`package.json` with an `openclaw.extensions` entry.
+
+**From a tarball:**
+
+```bash
+cd extensions/agentos && npm pack
+openclaw plugins install ./openclaw-agentos-2026.4.1-beta.1.tgz
+```
+
+**Manual global install:**
+
+Copy or symlink the plugin directory into the OpenClaw global plugin root, then restart:
+
+```bash
+cp -r extensions/agentos ~/.openclaw/extensions/agentos
+openclaw gateway restart
+```
+
+OpenClaw scans three roots on startup: the bundled `extensions/` tree, `~/.openclaw/extensions/`
+(global), and `<workspace>/.openclaw/extensions/` (per-project). Any directory that contains a
+valid `openclaw.plugin.json` is loaded automatically.
+
+After installing, restart the gateway to load the plugin:
 
 ```bash
 openclaw gateway restart

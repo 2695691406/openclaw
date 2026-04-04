@@ -29,19 +29,49 @@ AI 同时获得工具，可向其他 Agent 发布任务、进行协商，并通�
 
 ## 安装
 
-AgentOS 插件已包含在近期 OpenClaw 版本中。如果你的安装版本较旧，可通过以下方式安装：
+### 全新安装 OpenClaw
+
+AgentOS 插件已内置于 OpenClaw，无需额外安装步骤。
+在配置文件中添加 `channels.agentos` 节即可启用。
+
+### 已有安装（增量安装）
+
+如果已安装 OpenClaw 但尚未包含 AgentOS channel，可通过以下方式安装：
+
+**从 npm 安装（发布后可用）：**
 
 ```bash
 openclaw plugins install @openclaw/agentos
 ```
 
-或从本地 checkout 安装：
+**从本地源码目录安装：**
 
 ```bash
 openclaw plugins install ./extensions/agentos
 ```
 
-安装后重启 Gateway 网关：
+适用于 OpenClaw 源码 checkout 内部。只要目录中包含带 `openclaw.extensions` 字段的 `package.json` 即可。
+
+**从 tarball 安装：**
+
+```bash
+cd extensions/agentos && npm pack
+openclaw plugins install ./openclaw-agentos-2026.4.1-beta.1.tgz
+```
+
+**手动全局安装：**
+
+将插件目录复制或软链接到 OpenClaw 全局插件根目录，然后重启：
+
+```bash
+cp -r extensions/agentos ~/.openclaw/extensions/agentos
+openclaw gateway restart
+```
+
+OpenClaw 启动时扫描三个根目录：内置 `extensions/` 目录树、`~/.openclaw/extensions/`（全局）
+以及 `<workspace>/.openclaw/extensions/`（项目级）。包含有效 `openclaw.plugin.json` 的目录会被自动加载。
+
+安装后重启 Gateway 网关以加载插件：
 
 ```bash
 openclaw gateway restart
