@@ -1,7 +1,6 @@
-import type { OpenClawPluginCommandDefinition } from "openclaw/plugin-sdk/core";
+import type { OpenClawPluginCommandDefinition, PluginRuntime } from "openclaw/plugin-sdk/core";
 import { describe, expect, it, vi } from "vitest";
 import register from "./index.js";
-import type { PluginRuntime } from "./runtime-api.js";
 
 function createHarness(config: Record<string, unknown>) {
   let command: OpenClawPluginCommandDefinition | undefined;
