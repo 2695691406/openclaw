@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpenClaw MQ 对话测试</title>
+  <script src="https://cdn.jsdelivr.net/npm/@stomp/stompjs@7/bundles/stomp.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f0f2f5;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 760px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    h1 {
+      font-size: 20px;
+      font-weight: 600;
+      color: #1a1a2e;
+      text-align: center;
+    }
+
+    /* connection bar */
+    .conn-bar {
+      background: #fff;
+      border-radius: 10px;
+      padding: 14px 16px;
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr auto;
+      gap: 10px;
+      align-items: end;
+      box-shadow: 0 1px 4px rgba(0,0,0,.08);
+    }
+
+    .field label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      color: #666;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: .4px;
+    }
+
+    .field input {
+      width: 100%;
+      padding: 7px 10px;
+      border: 1px solid #d9dde2;
+      border-radius: 6px;
+      font-size: 13px;
+      color: #222;
+      outline: none;
+      transition: border-color .2s;
+    }
+
+    .field input:focus { border-color: #6366f1; }
+
+    #btnConnect {
+      padding: 8px 18px;
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      background: #6366f1;
+      color: #fff;
+      transition: background .2s;
+      white-space: nowrap;
+    }
+
+    #btnConnect:hover { background: #4f46e5; }
+    #btnConnect.connected { background: #ef4444; }
+    #btnConnect.connected:hover { background: #dc2626; }
+
+    /* status */
+    .status-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: #666;
+      padding: 0 4px;
+    }
+
+    .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #d1d5db;
+      flex-shrink: 0;
+    }
+
+    .dot.connecting { background: #f59e0b; animation: pulse 1s infinite; }
+    .dot.connected  { background: #22c55e; }
+    .dot.error      { background: #ef4444; }
+
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+    /* chat window */
+    .chat-window {
+      background: #fff;
+      border-radius: 10px;
+      height: 420px;
+      overflow-y: auto;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.08);
+      scroll-behavior: smooth;
+    }
+
+    .msg {
+      max-width: 75%;
+      padding: 9px 13px;
+      border-radius: 12px;
+      font-size: 14px;
+      line-height: 1.55;
+      word-break: break-word;
+      position: relative;
+    }
+
+    .msg.user {
+      align-self: flex-end;
+      background: #6366f1;
+      color: #fff;
+      border-bottom-right-radius: 4px;
+    }
+
+    .msg.agent {
+      align-self: flex-start;
+      background: #f1f5f9;
+      color: #1e293b;
+      border-bottom-left-radius: 4px;
+    }
+
+    .msg.system {
+      align-self: center;
+      background: none;
+      color: #94a3b8;
+      font-size: 12px;
+      max-width: 100%;
+      text-align: center;
+    }
+
+    .msg-time {
+      font-size: 10px;
+      opacity: .6;
+      margin-top: 3px;
+      text-align: right;
+    }
+
+    /* input bar */
+    .input-bar {
+      display: flex;
+      gap: 8px;
+    }
+
+    #msgInput {
+      flex: 1;
+      padding: 10px 14px;
+      border: 1px solid #d9dde2;
+      border-radius: 8px;
+      font-size: 14px;
+      outline: none;
+      transition: border-color .2s;
+    }
+
+    #msgInput:focus { border-color: #6366f1; }
+    #msgInput:disabled { background: #f8fafc; color: #aaa; }
+
+    #btnSend {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      background: #6366f1;
+      color: #fff;
+      transition: background .2s;
+    }
+
+    #btnSend:hover:not(:disabled) { background: #4f46e5; }
+    #btnSend:disabled { background: #c7c8f0; cursor: not-allowed; }
+
+    /* instructions */
+    .instructions {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.08);
+      overflow: hidden;
+    }
+
+    .instructions summary {
+      padding: 10px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #4f46e5;
+      cursor: pointer;
+      user-select: none;
+      list-style: none;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .instructions summary::-webkit-details-marker { display: none; }
+
+    .instructions summary::before {
+      content: '▶';
+      font-size: 10px;
+      transition: transform .2s;
+    }
+
+    details[open] > summary::before { transform: rotate(90deg); }
+
+    .instructions-body {
+      padding: 0 16px 14px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px 20px;
+    }
+
+    .inst-section h3 {
+      font-size: 12px;
+      font-weight: 700;
+      color: #374151;
+      margin-bottom: 6px;
+      padding-bottom: 4px;
+      border-bottom: 1px solid #f1f5f9;
+    }
+
+    .inst-section ol, .inst-section ul {
+      padding-left: 16px;
+      font-size: 12px;
+      color: #555;
+      line-height: 1.8;
+    }
+
+    .inst-section code {
+      background: #f1f5f9;
+      border-radius: 3px;
+      padding: 1px 5px;
+      font-size: 11px;
+      color: #4f46e5;
+    }
+
+    .inst-tip {
+      grid-column: 1 / -1;
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-size: 12px;
+      color: #92400e;
+      line-height: 1.7;
+    }
+
+    .inst-tip strong { color: #78350f; }
+
+    /* sender id row */
+    .sender-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: #888;
+      padding: 0 4px;
+    }
+
+    .sender-row input {
+      padding: 4px 8px;
+      border: 1px solid #d9dde2;
+      border-radius: 5px;
+      font-size: 12px;
+      width: 160px;
+      outline: none;
+    }
+
+    .sender-row input:focus { border-color: #6366f1; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🐾 OpenClaw MQ 对话测试</h1>
+
+    <!-- Instructions -->
+    <details class="instructions">
+      <summary>操作说明</summary>
+      <div class="instructions-body">
+
+        <div class="inst-section">
+          <h3>① 启动环境</h3>
+          <ol>
+            <li>进入 <code>mq.demo/</code> 目录</li>
+            <li>运行 <code>docker compose up -d</code></li>
+            <li>等待 RabbitMQ 启动后执行：<br>
+              <code>docker exec rabbitmq rabbitmq-plugins enable rabbitmq_web_stomp</code>
+            </li>
+          </ol>
+        </div>
+
+        <div class="inst-section">
+          <h3>② 连接 Broker</h3>
+          <ol>
+            <li>确认 WebSocket URL 为 <code>ws://localhost:15674/ws</code></li>
+            <li>用户名 <code>admin</code>，密码 <code>123456</code>（与 docker-compose 一致）</li>
+            <li>点击「连接」按钮，状态变绿即成功</li>
+          </ol>
+        </div>
+
+        <div class="inst-section">
+          <h3>③ 发送消息</h3>
+          <ol>
+            <li>在底部输入框输入文字</li>
+            <li>按 <code>Enter</code> 或点击「发送」</li>
+            <li>消息发往 <code>openclaw-in</code> 队列</li>
+            <li>OpenClaw Agent 的回复会自动出现在对话框</li>
+          </ol>
+        </div>
+
+        <div class="inst-section">
+          <h3>④ 消息流向</h3>
+          <ul>
+            <li><strong>发送</strong>：<code>openclaw-in</code></li>
+            <li><strong>接收</strong>：<code>openclaw-out</code></li>
+            <li>消息头自动携带 <code>x-sender-id</code> 和 <code>x-message-id</code></li>
+            <li>Sender ID 可在输入框左侧修改</li>
+          </ul>
+        </div>
+
+        <div class="inst-tip">
+          <strong>⚠️ 前置条件：</strong>
+          OpenClaw Gateway 需已启动并配置 RabbitMQ MQ channel（<code>brokerUrl: amqp://admin:123456@localhost:5672</code>，
+          <code>consumerTopic: openclaw-in</code>，<code>topic: openclaw-out</code>）。
+          若连接失败，请确认 15674 端口已映射且 <code>rabbitmq_web_stomp</code> 插件已启用。
+        </div>
+
+      </div>
+    </details>
+
+    <!-- Connection settings -->
+    <div class="conn-bar">
+      <div class="field">
+        <label>Broker WebSocket URL</label>
+        <input id="brokerUrl" value="ws://localhost:15674/ws" />
+      </div>
+      <div class="field">
+        <label>用户名</label>
+        <input id="username" value="admin" />
+      </div>
+      <div class="field">
+        <label>密码</label>
+        <input id="password" type="password" value="123456" />
+      </div>
+      <button id="btnConnect">连接</button>
+    </div>
+
+    <!-- Status -->
+    <div class="status-row">
+      <span class="dot" id="dot"></span>
+      <span id="statusText">未连接</span>
+    </div>
+
+    <!-- Chat window -->
+    <div class="chat-window" id="chatWindow">
+      <div class="msg system">连接后即可开始对话</div>
+    </div>
+
+    <!-- Sender ID + Input -->
+    <div class="sender-row">
+      <span>Sender ID：</span>
+      <input id="senderId" value="mq-demo-web" />
+      <span style="margin-left:auto; font-size:11px; color:#bbb">
+        In: <code>openclaw-in</code> → Out: <code>openclaw-out</code>
+      </span>
+    </div>
+
+    <div class="input-bar">
+      <input id="msgInput" placeholder="输入消息，回车发送..." disabled />
+      <button id="btnSend" disabled>发送</button>
+    </div>
+  </div>
+
+  <script>
+    // ── DOM refs ─────────────────────────────────────────────────────────────
+    const brokerUrlEl = document.getElementById('brokerUrl');
+    const usernameEl  = document.getElementById('username');
+    const passwordEl  = document.getElementById('password');
+    const senderIdEl  = document.getElementById('senderId');
+    const btnConnect  = document.getElementById('btnConnect');
+    const dot         = document.getElementById('dot');
+    const statusText  = document.getElementById('statusText');
+    const chatWindow  = document.getElementById('chatWindow');
+    const msgInput    = document.getElementById('msgInput');
+    const btnSend     = document.getElementById('btnSend');
+
+    const IN_TOPIC  = '/queue/openclaw-in';
+    const OUT_TOPIC = '/queue/openclaw-out';
+
+    // ── State ────────────────────────────────────────────────────────────────
+    let stompClient = null;
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
+    function setStatus(state, text) {
+      dot.className = 'dot ' + state;
+      statusText.textContent = text;
+    }
+
+    function setConnected(yes) {
+      btnConnect.textContent = yes ? '断开' : '连接';
+      btnConnect.className   = yes ? 'connected' : '';
+      msgInput.disabled  = !yes;
+      btnSend.disabled   = !yes;
+      if (yes) msgInput.focus();
+    }
+
+    function now() {
+      return new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }
+
+    function appendMsg(text, role) {
+      const wrap = document.createElement('div');
+      wrap.className = 'msg ' + role;
+
+      const body = document.createElement('div');
+      body.textContent = text;
+
+      wrap.appendChild(body);
+
+      if (role !== 'system') {
+        const t = document.createElement('div');
+        t.className = 'msg-time';
+        t.textContent = now();
+        wrap.appendChild(t);
+      }
+
+      chatWindow.appendChild(wrap);
+      chatWindow.scrollTop = chatWindow.scrollHeight;
+    }
+
+    // ── STOMP client ─────────────────────────────────────────────────────────
+    function connect() {
+      const brokerURL = brokerUrlEl.value.trim();
+      const login     = usernameEl.value.trim();
+      const passcode  = passwordEl.value;
+
+      setStatus('connecting', '连接中…');
+
+      stompClient = new StompJs.Client({
+        brokerURL,
+        connectHeaders: { login, passcode },
+        reconnectDelay: 0,   // 手动控制，不自动重连
+
+        onConnect() {
+          setStatus('connected', `已连接到 ${brokerURL}`);
+          setConnected(true);
+          appendMsg('已连接到 RabbitMQ Broker，正在监听 openclaw-out…', 'system');
+
+          // Subscribe to agent replies
+          stompClient.subscribe(OUT_TOPIC, (frame) => {
+            const text = frame.body || '（空消息）';
+            appendMsg(text, 'agent');
+          });
+        },
+
+        onStompError(frame) {
+          setStatus('error', 'STOMP 错误：' + (frame.headers?.message || '未知'));
+          appendMsg('连接错误：' + (frame.headers?.message || frame.body), 'system');
+          setConnected(false);
+          stompClient = null;
+        },
+
+        onDisconnect() {
+          setStatus('', '已断开');
+          setConnected(false);
+          appendMsg('已断开连接', 'system');
+          stompClient = null;
+        },
+
+        onWebSocketError(evt) {
+          setStatus('error', 'WebSocket 错误，请确认 rabbitmq_web_stomp 插件已启用');
+          appendMsg('WebSocket 连接失败，请检查：\n① Broker 地址是否正确\n② rabbitmq_web_stomp 插件是否启用（rabbitmq-plugins enable rabbitmq_web_stomp）\n③ 用户名/密码是否正确', 'system');
+          setConnected(false);
+          stompClient = null;
+        },
+      });
+
+      stompClient.activate();
+    }
+
+    function disconnect() {
+      if (stompClient) {
+        stompClient.deactivate();
+        stompClient = null;
+      }
+      setStatus('', '已断开');
+      setConnected(false);
+    }
+
+    function sendMessage() {
+      const text = msgInput.value.trim();
+      if (!text || !stompClient?.connected) return;
+
+      const senderId = senderIdEl.value.trim() || 'mq-demo-web';
+      const messageId = crypto.randomUUID();
+
+      stompClient.publish({
+        destination: IN_TOPIC,
+        body: text,
+        headers: {
+          'content-type': 'text/plain',
+          'x-sender-id':  senderId,
+          'x-message-id': messageId,
+        },
+      });
+
+      appendMsg(text, 'user');
+      msgInput.value = '';
+    }
+
+    // ── Event listeners ──────────────────────────────────────────────────────
+    btnConnect.addEventListener('click', () => {
+      if (stompClient?.connected) disconnect();
+      else connect();
+    });
+
+    btnSend.addEventListener('click', sendMessage);
+
+    msgInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+  </script>
+</body>
+</html>

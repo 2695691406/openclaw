@@ -1,0 +1,17 @@
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - 5672:5672    # 代码连接用的端口
+      - 15672:15672  # 可视化控制台用的端口
+      - 15674:15674  # STOMP over WebSocket（浏览器 Demo 用）
+    environment:
+      - RABBITMQ_DEFAULT_USER=admin
+      - RABBITMQ_DEFAULT_PASS=123456
+    networks:
+      - mq_net
+
+networks:
+  mq_net:
+    driver: bridge
