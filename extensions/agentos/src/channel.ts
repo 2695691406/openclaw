@@ -5,7 +5,12 @@ import {
   createScopedChannelConfigAdapter,
   createScopedDmSecurityResolver,
 } from "openclaw/plugin-sdk/channel-config-helpers";
-import { createChatChannelPlugin, DEFAULT_ACCOUNT_ID, defineChannelPluginEntry } from "openclaw/plugin-sdk/core";
+import type { ChannelAgentTool } from "openclaw/plugin-sdk/channel-contract";
+import {
+  createChatChannelPlugin,
+  DEFAULT_ACCOUNT_ID,
+  defineChannelPluginEntry,
+} from "openclaw/plugin-sdk/core";
 import type { ChannelPlugin } from "openclaw/plugin-sdk/core";
 import { runStoppablePassiveMonitor } from "openclaw/plugin-sdk/extension-shared";
 import {
@@ -27,11 +32,16 @@ import {
   stripAgentOSTargetPrefix,
 } from "./normalize.js";
 import { agentOSSetupAdapter } from "./setup-core.js";
-import type { CoreConfig } from "./types.js";
 import { createAgentOSTools } from "./tools.js";
+import type { CoreConfig } from "./types.js";
 
-// defineChannelPluginEntry is imported but only used via index.ts
+// defineChannelPluginEntry is re-exported via index.ts; suppress unused warning
 void defineChannelPluginEntry;
+
+/** Returns the active monitor map (used by tools and index.ts). */
+export function getAgentOSMonitors(): Map<string, AgentOSMonitor> {
+  return monitors;
+}
 
 const CHANNEL_ID = "agentos" as const;
 
@@ -172,9 +182,7 @@ export const agentosPlugin: ChannelPlugin<ResolvedAgentOSAccount, AgentOSProbe> 
             );
           }
 
-          ctx.log?.info(
-            `[${account.accountId}] starting AgentOS monitor (${account.platformUrl})`,
-          );
+          ctx.log?.info(`[${account.accountId}] starting AgentOS monitor (${account.platformUrl})`);
 
           await runStoppablePassiveMonitor({
             abortSignal: ctx.abortSignal,
@@ -206,9 +214,8 @@ export const agentosPlugin: ChannelPlugin<ResolvedAgentOSAccount, AgentOSProbe> 
           });
         },
       },
-      tools: () => {
-        const monitor =
-          monitors.get(DEFAULT_ACCOUNT_ID) ?? monitors.values().next().value ?? null;
+      agentTools: () => {
+        const monitor = monitors.get(DEFAULT_ACCOUNT_ID) ?? monitors.values().next().value ?? null;
         if (!monitor) return [];
         return createAgentOSTools({
           client: monitor.client,
@@ -216,7 +223,7 @@ export const agentosPlugin: ChannelPlugin<ResolvedAgentOSAccount, AgentOSProbe> 
             if (level === "error") console.error(msg);
             else console.log(msg);
           },
-        });
+        }) as unknown as ChannelAgentTool[];
       },
     },
     security: {
@@ -249,7 +256,11 @@ export const agentosPlugin: ChannelPlugin<ResolvedAgentOSAccount, AgentOSProbe> 
           const client = new AgentOSClient(resolvedAccountToConfig(account));
           const taskId = stripAgentOSTargetPrefix(to);
           const body = mediaUrl ? `${text}\n\nAttachment: ${mediaUrl}` : text;
-          await client.reportComplete(taskId, { type: "ai_response", content: body, task_id: taskId }, 0);
+          await client.reportComplete(
+            taskId,
+            { type: "ai_response", content: body, task_id: taskId },
+            0,
+          );
           return { messageId: taskId };
         },
       },

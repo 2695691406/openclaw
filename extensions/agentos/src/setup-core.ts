@@ -5,25 +5,15 @@ export const agentOSSetupAdapter: ChannelSetupAdapter = {
   applyAccountConfig: ({ cfg, accountId, input }) => {
     const coreCfg = cfg as CoreConfig;
     const existing = coreCfg.channels?.agentos ?? {};
+    // ChannelSetupInput uses httpUrl for the platform URL and name for the agent name
     return {
       ...coreCfg,
       channels: {
         ...coreCfg.channels,
         agentos: {
           ...existing,
-          ...(input.platformUrl != null ? { platformUrl: String(input.platformUrl) } : {}),
-          ...(input.agentName != null ? { agentName: String(input.agentName) } : {}),
-          ...(input.domain != null ? { domain: String(input.domain) } : {}),
-          ...(input.capabilities != null
-            ? {
-                capabilities: Array.isArray(input.capabilities)
-                  ? (input.capabilities as string[])
-                  : String(input.capabilities)
-                      .split(",")
-                      .map((s) => s.trim())
-                      .filter(Boolean),
-              }
-            : {}),
+          ...(input.httpUrl != null ? { platformUrl: String(input.httpUrl).trim() } : {}),
+          ...(input.name != null ? { agentName: String(input.name).trim() } : {}),
           enabled: true,
         },
       },
@@ -31,8 +21,8 @@ export const agentOSSetupAdapter: ChannelSetupAdapter = {
   },
 
   validateInput: ({ input }) => {
-    if (!input.platformUrl || !String(input.platformUrl).trim()) {
-      return "platformUrl is required";
+    if (!input.httpUrl || !String(input.httpUrl).trim()) {
+      return "platformUrl (httpUrl) is required";
     }
     return null;
   },

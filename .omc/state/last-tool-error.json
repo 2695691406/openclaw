@@ -1,0 +1,7 @@
+{
+  "tool_name": "Bash",
+  "tool_input_preview": "{\"command\":\"git add extensions/agentos/index.ts extensions/agentos/src/channel.ts extensions/agentos/src/setup-core.ts && git commit -m \\\"$(cat <<'EOF'\\nfix(agentos): align with plugin SDK types\\n\\n- ...",
+  "error": "Exit code 1\nFound 0 warnings and 0 errors.\nFinished in 4ms on 0 files with 136 rules using 10 threads.\nFinished in 21ms on 3 files using 10 threads.\n\n> openclaw@2026.4.3 check /Users/wangmeng/work/codex/Aha-Agent-Company/openclaw\n> pnpm check:no-conflict-markers && pnpm check:host-env-policy:swift && pnpm tsgo && pnpm lint && pnpm lint:webhook:no-low-level-body-read && pnpm lint:auth:no-pairing-store-group && pnpm lint:auth:pairing-account-scope\n\n\n> openclaw@2026.4.3 check:no-conflict-markers /U...",
+  "timestamp": "2026-04-04T14:09:35.476Z",
+  "retry_count": 1
+}

@@ -1,0 +1,69 @@
+{
+  "updatedAt": "2026-04-04T14:03:17.675Z",
+  "missions": [
+    {
+      "id": "session:80c3d0c7-1fe0-4231-9aad-7c85da531e60:none",
+      "source": "session",
+      "name": "none",
+      "objective": "Session mission",
+      "createdAt": "2026-04-03T13:09:21.939Z",
+      "updatedAt": "2026-04-04T14:03:17.675Z",
+      "status": "done",
+      "workerCount": 1,
+      "taskCounts": {
+        "total": 1,
+        "pending": 0,
+        "blocked": 0,
+        "inProgress": 0,
+        "completed": 1,
+        "failed": 0
+      },
+      "agents": [
+        {
+          "name": "Explore:adb5be3",
+          "role": "Explore",
+          "ownership": "adb5be34f37e711d0",
+          "status": "done",
+          "currentStep": null,
+          "latestUpdate": "completed",
+          "completedSummary": null,
+          "updatedAt": "2026-04-04T14:03:17.675Z"
+        }
+      ],
+      "timeline": [
+        {
+          "id": "session-start:adb5be34f37e711d0:2026-04-03T13:09:21.939Z",
+          "at": "2026-04-03T13:09:21.939Z",
+          "kind": "update",
+          "agent": "Explore:adb5be3",
+          "detail": "started Explore:adb5be3",
+          "sourceKey": "session-start:adb5be34f37e711d0"
+        },
+        {
+          "id": "session-stop:adb5be34f37e711d0:2026-04-03T13:26:43.238Z",
+          "at": "2026-04-03T13:26:43.238Z",
+          "kind": "completion",
+          "agent": "Explore:adb5be3",
+          "detail": "completed",
+          "sourceKey": "session-stop:adb5be34f37e711d0"
+        },
+        {
+          "id": "session-stop:a8be7f9e3bf8da04e:2026-04-03T23:10:53.426Z",
+          "at": "2026-04-03T23:10:53.426Z",
+          "kind": "completion",
+          "agent": "Explore:adb5be3",
+          "detail": "completed",
+          "sourceKey": "session-stop:a8be7f9e3bf8da04e"
+        },
+        {
+          "id": "session-stop:a0e6fd042159dcec3:2026-04-04T14:03:17.675Z",
+          "at": "2026-04-04T14:03:17.675Z",
+          "kind": "completion",
+          "agent": "Explore:adb5be3",
+          "detail": "completed",
+          "sourceKey": "session-stop:a0e6fd042159dcec3"
+        }
+      ]
+    }
+  ]
+}
