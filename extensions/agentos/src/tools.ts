@@ -1,24 +1,46 @@
 /**
  * AgentOS Agent Tools — 暴露给 OpenClaw AI 的工具
  *
- * 当 OpenClaw 接入 AgentOS 后，AI 助手获得以下新能力:
- * - agentos_publish_task: 向协作网络发布任务，让其他 Agent 来做
- * - agentos_negotiate: 与其他 Agent 进行协商
- * - agentos_read_blackboard: 读取共享黑板数据
- * - agentos_write_blackboard: 写入共享黑板数据
- * - agentos_list_agents: 查看网络中有哪些 Agent
+ * 当 OpenClaw 接入 AgentOS 后，AI 助手自动获得以下能力：
+ *
+ *   agentos_publish_task     向协作网络发布任务，委托其他 Agent 完成
+ *   agentos_negotiate        与其他 Agent 进行多轮协商（FIPA-ACL 风格）
+ *   agentos_read_blackboard  读取共享黑板键值
+ *   agentos_write_blackboard 写入共享黑板键值
+ *   agentos_list_agents      查看网络中的在线 Agent 列表
+ *
+ * 工具注册：
+ *   这些工具通过 channel.ts 的 agentTools 字段注册，在 Gateway 网关启动后
+ *   由核心路由层注入 AI 的工具集。工具仅在有活跃 Monitor（即已接入 AgentOS）
+ *   时才会返回（monitors Map 为空时 agentTools 返回 []）。
+ *
+ * 错误处理原则：
+ *   每个工具的 execute 均包裹 try/catch，失败时返回 { ok: false, error }
+ *   而非抛出异常，避免单次工具调用失败中断整个 AI 对话。
  */
 
 import type { AgentOSClient } from "./client.js";
 
+/** 工具执行所需的依赖上下文，由 channel.ts 从当前活跃 Monitor 中提取 */
 export type AgentOSToolContext = {
+  /** AgentOS REST API 客户端，已完成注册（含 agentId） */
   client: AgentOSClient;
+  /** 日志接口，工具调用结果通过此接口记录到 Gateway 网关日志 */
   log: (level: "info" | "warn" | "error", message: string) => void;
 };
 
-/** 定义暴露给 OpenClaw AI 的 AgentOS 工具 */
+/**
+ * 构建并返回所有 AgentOS 工具的数组。
+ *
+ * 返回值类型为具体对象数组（非 ChannelAgentTool[]），在 channel.ts 中
+ * 通过 `as unknown as ChannelAgentTool[]` 转换，因为工具 schema 格式
+ * 与 ChannelAgentTool 的 TypeBox 类型不完全对齐，但运行时结构兼容。
+ */
 export function createAgentOSTools(ctx: AgentOSToolContext) {
   return [
+    // ─────────────────────────────────────────────────────────────────────
+    // agentos_publish_task
+    // ─────────────────────────────────────────────────────────────────────
     {
       name: "agentos_publish_task",
       description:
@@ -53,24 +75,29 @@ export function createAgentOSTools(ctx: AgentOSToolContext) {
         priority?: string;
       }) => {
         try {
-          // 创建 Mission
+          /**
+           * AgentOS 的任务发布分三步：
+           * 1. createMission  — 创建顶层需求单（Mission）
+           * 2. decomposeMission — 将 Mission 分解为任务 DAG
+           *    此处使用单节点 DAG（一个任务），无依赖关系
+           * 3. scheduleMission — 调度就绪任务，平台将其广播给符合条件的 Agent 竞标
+           */
           const mission = await ctx.client.createMission({
             title: params.title,
             description: params.description,
             priority: params.priority ?? "NORMAL",
           });
 
-          // 分解为单任务 DAG
           await ctx.client.decomposeMission(mission.id, [
             {
               title: params.title,
               description: params.description,
               required_capabilities: params.required_capabilities,
               required_domain: params.required_domain,
+              // dependencies 为空数组（默认），表示此任务无前置依赖，立即可调度
             },
           ]);
 
-          // 调度
           await ctx.client.scheduleMission(mission.id);
 
           ctx.log(
@@ -88,6 +115,10 @@ export function createAgentOSTools(ctx: AgentOSToolContext) {
         }
       },
     },
+
+    // ─────────────────────────────────────────────────────────────────────
+    // agentos_negotiate
+    // ─────────────────────────────────────────────────────────────────────
     {
       name: "agentos_negotiate",
       description:
@@ -99,12 +130,12 @@ export function createAgentOSTools(ctx: AgentOSToolContext) {
           intent: {
             type: "string",
             enum: [
-              "CFP",
-              "PROPOSE",
-              "ACCEPT_PROPOSAL",
-              "REJECT_PROPOSAL",
-              "COUNTER_PROPOSE",
-              "COMMIT",
+              "CFP", // Call For Proposal：征求提案
+              "PROPOSE", // 提出方案
+              "ACCEPT_PROPOSAL", // 接受对方提案
+              "REJECT_PROPOSAL", // 拒绝对方提案
+              "COUNTER_PROPOSE", // 反提案（提出修改版本）
+              "COMMIT", // 双方达成一致，协商结束
             ],
             description: "Message intent",
           },
@@ -130,6 +161,9 @@ export function createAgentOSTools(ctx: AgentOSToolContext) {
       }) => {
         try {
           await ctx.client.sendNegotiationMessage(params.thread_id, {
+            // currentAgentId 在 Monitor 注册后必然非 null；
+            // 工具仅在 Monitor 运行时（agentTools 回调有活跃 monitor）才被调用，
+            // 因此非空断言 (!) 在此处是安全的
             sender_agent_id: ctx.client.currentAgentId!,
             receiver_agent_id: params.receiver_agent_id ?? null,
             intent: params.intent,
@@ -142,6 +176,10 @@ export function createAgentOSTools(ctx: AgentOSToolContext) {
         }
       },
     },
+
+    // ─────────────────────────────────────────────────────────────────────
+    // agentos_read_blackboard
+    // ─────────────────────────────────────────────────────────────────────
     {
       name: "agentos_read_blackboard",
       description:
@@ -156,6 +194,8 @@ export function createAgentOSTools(ctx: AgentOSToolContext) {
       },
       execute: async (params: { namespace: string; key: string }) => {
         try {
+          // readBlackboard 内部对 404/网络错误返回 null 而非抛出，
+          // data=null 表示键不存在或读取失败，AI 可据此判断是否需要写入
           const data = await ctx.client.readBlackboard(params.namespace, params.key);
           return { ok: true, data };
         } catch (err) {
@@ -163,6 +203,10 @@ export function createAgentOSTools(ctx: AgentOSToolContext) {
         }
       },
     },
+
+    // ─────────────────────────────────────────────────────────────────────
+    // agentos_write_blackboard
+    // ─────────────────────────────────────────────────────────────────────
     {
       name: "agentos_write_blackboard",
       description: "Write data to the AgentOS shared blackboard for other agents to read.",
@@ -188,6 +232,10 @@ export function createAgentOSTools(ctx: AgentOSToolContext) {
         }
       },
     },
+
+    // ─────────────────────────────────────────────────────────────────────
+    // agentos_list_agents
+    // ─────────────────────────────────────────────────────────────────────
     {
       name: "agentos_list_agents",
       description:
@@ -197,9 +245,11 @@ export function createAgentOSTools(ctx: AgentOSToolContext) {
         properties: {
           domain: { type: "string", description: "Filter by domain (optional)" },
         },
+        // domain 为可选，required 数组为空（schema 允许省略 required 字段时留空）
       },
       execute: async (params: { domain?: string }) => {
         try {
+          // domain 未提供时返回所有在线 Agent；AI 可据此选择最合适的委托对象
           const agents = await ctx.client.listAgents(params.domain);
           return { ok: true, agents };
         } catch (err) {
