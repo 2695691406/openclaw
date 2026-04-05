@@ -55,6 +55,8 @@ import {
 import { AgentOSChannelConfigSchema } from "./config-schema.js";
 import { AgentOSMonitor } from "./monitor.js";
 import {
+  extractThreadId,
+  isThreadTarget,
   looksLikeAgentOSTargetId,
   normalizeAgentOSMessagingTarget,
   stripAgentOSTargetPrefix,
@@ -202,9 +204,11 @@ export const agentosPlugin: ChannelPlugin<ResolvedAgentOSAccount, AgentOSProbe> 
       meta,
       setup: agentOSSetupAdapter,
       capabilities: {
-        chatTypes: ["direct"], // 仅支持 DM（任务是点对点分配的）
-        media: false, // 不支持媒体附件（任务结果为纯文本）
-        blockStreaming: true, // 阻止流式输出（任务完成后一次性上报结果）
+        // direct：接收 AgentOS 任务分配（点对点）
+        // group：参与协商线程讨论（多方群聊）
+        chatTypes: ["direct", "group"],
+        media: false, // 不支持媒体附件（结果为纯文本）
+        blockStreaming: true, // 阻止流式输出（任务完成后一次性上报）
       },
       /** 配置前缀变更时触发 channel reload（如用户修改 platformUrl 后自动重连） */
       reload: { configPrefixes: ["channels.agentos"] },
@@ -242,18 +246,16 @@ export const agentosPlugin: ChannelPlugin<ResolvedAgentOSAccount, AgentOSProbe> 
          * 能通过 normalizeTarget 的字符串即视为有效目标。
          * 不支持 group 类型（AgentOS 任务是单播的）。
          */
-        resolveTargets: async ({ inputs, kind }) =>
+        /**
+         * 解析目标字符串，同时支持：
+         * - DM 目标：任务 ID / Agent ID（裸 ID 或 "agentos:xxx"）
+         * - Group 目标：协商线程（"agentos:thread:xxx"，kind="group"）
+         */
+        resolveTargets: async ({ inputs }) =>
           inputs.map((input) => {
             const normalized = normalizeAgentOSMessagingTarget(input);
             if (!normalized) {
               return { input, resolved: false, note: "invalid AgentOS target" };
-            }
-            if (kind === "group") {
-              return {
-                input,
-                resolved: false,
-                note: "AgentOS channel does not support group targets",
-              };
             }
             return { input, resolved: true, id: normalized, name: normalized };
           }),
@@ -407,31 +409,51 @@ export const agentosPlugin: ChannelPlugin<ResolvedAgentOSAccount, AgentOSProbe> 
          * 完成，sendText 是 outbound 路径的兜底实现（如 AI 通过 `message send` 命令
          * 主动向 AgentOS target 发消息时触发）。
          */
-        sendText: async ({ cfg, to, accountId }) => {
+        /**
+         * 出站文本发送。根据目标类型分两路：
+         * - Thread 目标（"agentos:thread:xxx"）→ sendThreadMessage，发回协商线程
+         * - Task 目标（裸 ID 或 "agentos:task:xxx"）→ reportComplete，上报任务结果
+         */
+        sendText: async ({ cfg, to, text, accountId }) => {
+          const bare = stripAgentOSTargetPrefix(to);
           const account = resolveAgentOSAccount({
             cfg: cfg as CoreConfig,
             accountId: accountId ?? undefined,
           });
           const { AgentOSClient } = await import("./client.js");
           const client = new AgentOSClient(resolvedAccountToConfig(account));
-          const taskId = stripAgentOSTargetPrefix(to);
+
+          if (isThreadTarget(bare)) {
+            // 群组讨论：发回协商线程
+            const threadId = extractThreadId(bare);
+            await client.sendThreadMessage(threadId, text ?? "");
+            return { messageId: `thread-${threadId}-${Date.now()}` };
+          }
+          // DM 任务：上报完成结果
+          const taskId = bare;
           await client.reportComplete(taskId, { type: "ai_response", task_id: taskId }, 0);
           return { messageId: taskId };
         },
         /**
-         * AI 回复媒体 → AgentOS 任务完成上报。
-         *
-         * AgentOS 不支持原生媒体附件，将 mediaUrl 附加到文本内容后一并上报。
+         * 出站媒体发送。逻辑与 sendText 相同，mediaUrl 拼入文本后发送。
+         * AgentOS 不支持原生媒体附件，将 mediaUrl 附加到正文一并上报/发送。
          */
         sendMedia: async ({ cfg, to, text, mediaUrl, accountId }) => {
+          const bare = stripAgentOSTargetPrefix(to);
+          const body = mediaUrl ? `${text}\n\nAttachment: ${mediaUrl}` : text;
           const account = resolveAgentOSAccount({
             cfg: cfg as CoreConfig,
             accountId: accountId ?? undefined,
           });
           const { AgentOSClient } = await import("./client.js");
           const client = new AgentOSClient(resolvedAccountToConfig(account));
-          const taskId = stripAgentOSTargetPrefix(to);
-          const body = mediaUrl ? `${text}\n\nAttachment: ${mediaUrl}` : text;
+
+          if (isThreadTarget(bare)) {
+            const threadId = extractThreadId(bare);
+            await client.sendThreadMessage(threadId, body ?? "");
+            return { messageId: `thread-${threadId}-${Date.now()}` };
+          }
+          const taskId = bare;
           await client.reportComplete(
             taskId,
             { type: "ai_response", content: body, task_id: taskId },

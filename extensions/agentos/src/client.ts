@@ -191,6 +191,29 @@ export class AgentOSClient {
     return this.get(`/api/v1/negotiations/${threadId}/messages`);
   }
 
+  /**
+   * 向协商线程发送一条通用讨论消息（群组聊天场景）。
+   *
+   * 对 sendNegotiationMessage 的封装，固定使用 "PROPOSE" 意图表示普通讨论内容。
+   * AI 通过 deliver 回调自动调用此方法回复线程中的消息。
+   *
+   * @param threadId         目标协商线程 ID
+   * @param content          消息文本
+   * @param receiverAgentId  指定接收方（null = 广播给线程所有参与者）
+   */
+  async sendThreadMessage(
+    threadId: string,
+    content: string,
+    receiverAgentId?: string | null,
+  ): Promise<void> {
+    await this.sendNegotiationMessage(threadId, {
+      sender_agent_id: this.agentId ?? "",
+      receiver_agent_id: receiverAgentId ?? null,
+      intent: "PROPOSE",
+      content: { message: content },
+    });
+  }
+
   // ── Blackboard (Shared State) ────────────────────────────────────────────
 
   /**

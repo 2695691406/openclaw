@@ -428,6 +428,90 @@ export class AgentOSMonitor {
   }
 
   /**
+   * 将协商线程消息分发给 OpenClaw AI，并将 AI 的回复发回线程（群组聊天场景）。
+   *
+   * 流程：
+   * 1. 将 AgentOS 协商消息格式化为可读文本 prompt（含发送方、意图、内容）
+   * 2. 通过 dispatchInboundDirectDmWithRuntime 注入 OpenClaw 入站管道
+   *    - peer.id = "agentos:thread:<threadId>"，让路由层将其视为群组会话
+   *    - senderId 携带发送方 Agent ID，供 AI 感知"谁发来的消息"
+   * 3. AI 生成回复后，deliver 回调调用 sendThreadMessage 将回复发回线程
+   *    广播给所有参与者（receiverAgentId=null）
+   */
+  private async handleNegotiationViaRuntime(
+    threadId: string,
+    event: Record<string, unknown>,
+  ): Promise<void> {
+    const core = getAgentOSRuntime();
+    const { cfg, accountId } = this.deps;
+    const client = this.client;
+
+    const senderId = String(event.sender_agent_id ?? "unknown");
+    const intent = String(event.intent ?? "");
+    const contentStr =
+      event.content && typeof event.content === "object"
+        ? JSON.stringify(event.content)
+        : String(event.content ?? "");
+
+    // 组合 prompt：让 AI 清晰了解这是哪个线程、谁发的、什么意图
+    const messageText = [
+      `[AgentOS Thread: ${threadId}]`,
+      `From: ${senderId} | Intent: ${intent}`,
+      "",
+      contentStr,
+    ].join("\n");
+
+    const childLogger = core.logging.getChildLogger({ channel: CHANNEL_ID, accountId });
+    // peer ID 编码线程 ID，outbound 的 sendText 用 "agentos:thread:" 前缀识别群组目标
+    const peerId = `agentos:thread:${threadId}`;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await dispatchInboundDirectDmWithRuntime({
+      cfg,
+      runtime: core as Parameters<typeof dispatchInboundDirectDmWithRuntime>[0]["runtime"],
+      channel: CHANNEL_ID,
+      channelLabel: "AgentOS",
+      accountId,
+      peer: { kind: "direct" as const, id: peerId },
+      senderId: `agentos:${senderId}`,
+      senderAddress: `agentos:${senderId}`,
+      recipientAddress: accountId,
+      conversationLabel: `Thread ${threadId}`,
+      rawBody: messageText,
+      messageId: `${threadId}-${Date.now()}`,
+      timestamp: Date.now(),
+      deliver: async (payload) => {
+        let replyText = "";
+        await deliverFormattedTextWithAttachments({
+          payload,
+          send: async ({ text }) => {
+            replyText = text;
+          },
+        });
+        if (replyText) {
+          // 广播回复给线程所有参与者
+          await client.sendThreadMessage(threadId, replyText, null);
+        }
+      },
+      onRecordError: (err) => {
+        childLogger.error("AgentOS thread record error", {
+          err: err instanceof Error ? err.message : String(err),
+        });
+      },
+      onDispatchError: (err, info) => {
+        childLogger.error(`AgentOS thread dispatch error (${info.kind})`, {
+          err: err instanceof Error ? err.message : String(err),
+        });
+        logInboundDrop({
+          log: (msg) => childLogger.info?.(msg),
+          channel: CHANNEL_ID,
+          reason: `thread dispatch error (${info.kind}): ${err instanceof Error ? err.message : String(err)}`,
+        });
+      },
+    });
+  }
+
+  /**
    * 处理 WebSocket 推送事件。
    *
    * 已处理的事件类型：
@@ -447,15 +531,16 @@ export class AgentOSMonitor {
         void this.pollAndExecute();
         break;
 
-      case "negotiation.message":
-        // 转发协商消息给上层回调（当前 channel.ts 实现仅打日志）
+      case "negotiation.message": {
+        const threadId = String(event.payload.thread_id ?? "");
+        // 将线程消息分发给 AI，AI 回复后自动发回线程（群组聊天）
+        void this.handleNegotiationViaRuntime(threadId, event.payload);
+        // 同时保留上层回调（channel.ts 可额外记录日志或触发其他逻辑）
         if (onNegotiationMessage) {
-          void onNegotiationMessage({
-            thread_id: String(event.payload.thread_id ?? ""),
-            message: event.payload,
-          });
+          void onNegotiationMessage({ thread_id: threadId, message: event.payload });
         }
         break;
+      }
 
       case "mission.status_changed":
         // Mission 进度更新，目前仅记录，未来可触发 AI 状态查询

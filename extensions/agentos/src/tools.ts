@@ -234,6 +234,143 @@ export function createAgentOSTools(ctx: AgentOSToolContext) {
     },
 
     // ─────────────────────────────────────────────────────────────────────
+    // agentos_poll_tasks
+    // ─────────────────────────────────────────────────────────────────────
+    {
+      name: "agentos_poll_tasks",
+      description:
+        "Poll the AgentOS network for available tasks that match this agent's domain and capabilities. Returns a list of tasks that can be claimed. Use this to actively look for work, or to check what tasks are pending before deciding whether to claim one.",
+      parameters: {
+        type: "object" as const,
+        properties: {},
+      },
+      execute: async (_params: Record<string, never>) => {
+        try {
+          const tasks = await ctx.client.pollAvailableTasks();
+          ctx.log("info", `[AgentOS Tool] poll_tasks found ${tasks.length} available task(s)`);
+          return { ok: true, count: tasks.length, tasks };
+        } catch (err) {
+          return { ok: false, error: String(err) };
+        }
+      },
+    },
+
+    // ─────────────────────────────────────────────────────────────────────
+    // agentos_claim_task
+    // ─────────────────────────────────────────────────────────────────────
+    {
+      name: "agentos_claim_task",
+      description:
+        "Claim (bid on) a specific task from the AgentOS network by its task ID. This is a competitive operation — multiple agents may bid simultaneously and the platform selects the best match. If the claim succeeds, the task is assigned to this agent and should be completed with agentos_report_complete.",
+      parameters: {
+        type: "object" as const,
+        properties: {
+          task_id: { type: "string", description: "The task ID to claim" },
+          approach: {
+            type: "string",
+            description:
+              "Optional description of how you plan to complete the task (helps the platform choose between bidders)",
+          },
+        },
+        required: ["task_id"],
+      },
+      execute: async (params: { task_id: string; approach?: string }) => {
+        try {
+          const result = await ctx.client.claimTask(params.task_id, params.approach);
+          ctx.log(
+            "info",
+            `[AgentOS Tool] Claimed task ${params.task_id} → assignment ${result.assignment_id}`,
+          );
+          return { ok: true, ...result };
+        } catch (err) {
+          ctx.log("warn", `[AgentOS Tool] claim_task failed for ${params.task_id}: ${String(err)}`);
+          return { ok: false, error: String(err) };
+        }
+      },
+    },
+
+    // ─────────────────────────────────────────────────────────────────────
+    // agentos_report_complete
+    // ─────────────────────────────────────────────────────────────────────
+    {
+      name: "agentos_report_complete",
+      description:
+        "Report that a claimed task has been completed successfully. Call this after finishing the work for a task you previously claimed with agentos_claim_task. The result object should contain your output in whatever format the task's output_contract specifies.",
+      parameters: {
+        type: "object" as const,
+        properties: {
+          task_id: { type: "string", description: "The task ID to mark as complete" },
+          result: {
+            type: "object",
+            description:
+              "The task output/result data (format determined by the task's output_contract)",
+          },
+          summary: {
+            type: "string",
+            description: "Optional short summary of what was done (shown in platform logs)",
+          },
+        },
+        required: ["task_id", "result"],
+      },
+      execute: async (params: {
+        task_id: string;
+        result: Record<string, unknown>;
+        summary?: string;
+      }) => {
+        try {
+          await ctx.client.reportComplete(params.task_id, params.result, 0, params.summary);
+          ctx.log("info", `[AgentOS Tool] Reported complete for task ${params.task_id}`);
+          return { ok: true, message: `Task ${params.task_id} marked as complete` };
+        } catch (err) {
+          return { ok: false, error: String(err) };
+        }
+      },
+    },
+
+    // ─────────────────────────────────────────────────────────────────────
+    // agentos_report_failure
+    // ─────────────────────────────────────────────────────────────────────
+    {
+      name: "agentos_report_failure",
+      description:
+        "Report that a claimed task has failed. Use this when you cannot complete a task you have claimed. RETRYABLE failures allow the platform to reassign the task to another agent; NON_RETRYABLE marks the task as permanently failed.",
+      parameters: {
+        type: "object" as const,
+        properties: {
+          task_id: { type: "string", description: "The task ID to mark as failed" },
+          error_message: { type: "string", description: "Description of what went wrong" },
+          error_type: {
+            type: "string",
+            enum: ["RETRYABLE", "NON_RETRYABLE"],
+            description:
+              "RETRYABLE: platform may reassign to another agent. NON_RETRYABLE: task is permanently failed.",
+          },
+        },
+        required: ["task_id", "error_message"],
+      },
+      execute: async (params: {
+        task_id: string;
+        error_message: string;
+        error_type?: "RETRYABLE" | "NON_RETRYABLE";
+      }) => {
+        try {
+          await ctx.client.reportFailure(
+            params.task_id,
+            params.error_message,
+            params.error_type ?? "RETRYABLE",
+          );
+          ctx.log(
+            "warn",
+            `[AgentOS Tool] Reported failure for task ${params.task_id}: ${params.error_message}`,
+          );
+          return { ok: true, message: `Task ${params.task_id} marked as failed` };
+        } catch (err) {
+          return { ok: false, error: String(err) };
+        }
+      },
+    },
+
+    // ─────────────────────────────────────────────────────────────────────
     // agentos_list_agents
     // ─────────────────────────────────────────────────────────────────────
     {
